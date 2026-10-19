@@ -2,58 +2,61 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function RecipesListPage() {
-  const [ingredients, setIngredients] = useState([]);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('Spiritueux');
-  const [costHt, setCostHt] = useState('');
-  const [volumeMl, setVolumeMl] = useState('700');
+  // 1. Protection de la route : Vérifier la connexion utilisateur
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  const fetchIngredients = async () => {
+      if (!session) {
+        router.push('/login');
+      } else {
+        setAuthLoading(false);
+        fetchRecipes();
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // 2. Charger la liste des recettes depuis Supabase
+  const fetchRecipes = async () => {
+    setLoading(true);
     const { data, error } = await supabase
-      .from('ingredients')
+      .from('recipes')
       .select('*')
       .order('created_at', { ascending: false });
+
     if (error) {
-      console.error('Erreur de chargement:', error.message);
+      console.error('Erreur lors du chargement des recettes:', error.message);
     } else {
-      setIngredients(data || []);
+      setRecipes(data || []);
     }
-  };
-
-  useEffect(() => {
-    fetchIngredients();
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name || !costHt || !volumeMl) {
-      alert('Veuillez remplir tous les champs !');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.from('ingredients').insert([
-      {
-        name,
-        category,
-        cost_ht: parseFloat(costHt),
-        volume_ml: parseFloat(volumeMl),
-      },
-    ]);
-
     setLoading(false);
-    if (error) {
-      alert("Erreur lors de l’ajout : " + error.message);
-    } else {
-      setName('');
-      setCostHt('');
-      fetchIngredients();
-    }
   };
+
+  // 3. Déconnexion
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  if (authLoading) {
+    return (
+      <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <p>Vérification de l'accès en cours...</p>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -64,193 +67,65 @@ export default function RecipesListPage() {
         fontFamily: 'sans-serif',
       }}
     >
-      <h1>🍾 BarCodex - Gestion des Ingrédients</h1>
-
-      <form
-        onSubmit={handleSubmit}
+      {/* ENTÊTE & BOUTON DÉCONNEXION */}
+      <div
         style={{
-          background: '#f4f4f5',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '30px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
         }}
       >
-        <h3 style={{ marginTop: 0 }}>Ajouter une bouteille ou un ingrédient</h3>
-
-        <div style={{ marginBottom: '12px' }}>
-          <label
-            style={{
-              display: 'block',
-              fontWeight: 'bold',
-              marginBottom: '5px',
-            }}
-          >
-            Nom de l’ingrédient :
-          </label>
-          <input
-            type="text"
-            placeholder="ex: Gin Hendrick’s, Sirop de Passion..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '12px' }}>
-          <label
-            style={{
-              display: 'block',
-              fontWeight: 'bold',
-              marginBottom: '5px',
-            }}
-          >
-            Catégorie :
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-            }}
-          >
-            <option value="Spiritueux">Spiritueux</option>
-            <option value="Liqueur">Liqueur</option>
-            <option value="Jus">Jus</option>
-            <option value="Sirop">Sirop</option>
-            <option value="Soft / Soda">Soft / Soda</option>
-            <option value="Garniture">Garniture</option>
-          </select>
-        </div>
-
-        <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                display: 'block',
-                fontWeight: 'bold',
-                marginBottom: '5px',
-              }}
-            >
-              Prix d’achat HT (€) :
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="ex: 28.00"
-              value={costHt}
-              onChange={(e) => setCostHt(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                display: 'block',
-                fontWeight: 'bold',
-                marginBottom: '5px',
-              }}
-            >
-              Volume total (ml) :
-            </label>
-            <input
-              type="number"
-              placeholder="ex: 700"
-              value={volumeMl}
-              onChange={(e) => setVolumeMl(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
-            />
-          </div>
-        </div>
-
+        <h1 style={{ margin: 0 }}>🍾 BarCodex</h1>
         <button
-          type="submit"
-          disabled={loading}
+          onClick={handleLogout}
           style={{
-            background: '#10b981',
+            background: '#ef4444',
             color: '#fff',
             border: 'none',
-            padding: '10px 20px',
+            padding: '8px 15px',
             borderRadius: '5px',
             cursor: 'pointer',
             fontWeight: 'bold',
-            fontSize: '16px',
           }}
         >
-          {loading ? 'Enregistrement...' : '+ Ajouter l’ingrédient'}
+          Déconnexion
         </button>
-      </form>
+      </div>
 
-      <h3>Inventaire des bouteilles ({ingredients.length})</h3>
-      {ingredients.length === 0 ? (
+      <h2>🍸 Liste des Recettes</h2>
+
+      {loading ? (
+        <p>Chargement des recettes...</p>
+      ) : recipes.length === 0 ? (
         <p style={{ color: '#666', fontStyle: 'italic' }}>
-          Aucun ingrédient enregistré pour le moment. Ajoutez votre première
-          bouteille ci-dessus !
+          Aucune recette enregistrée pour le moment.
         </p>
       ) : (
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            background: '#fff',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
-          <thead>
-            <tr style={{ background: '#e4e4e7', textAlign: 'left' }}>
-              <th style={{ padding: '12px' }}>Nom</th>
-              <th style={{ padding: '12px' }}>Catégorie</th>
-              <th style={{ padding: '12px' }}>Prix HT</th>
-              <th style={{ padding: '12px' }}>Volume</th>
-              <th style={{ padding: '12px' }}>Coût / ml</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ingredients.map((ing) => (
-              <tr key={ing.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '12px', fontWeight: '500' }}>
-                  {ing.name}
-                </td>
-                <td style={{ padding: '12px', color: '#555' }}>
-                  {ing.category}
-                </td>
-                <td style={{ padding: '12px' }}>
-                  {Number(ing.cost_ht).toFixed(2)} €
-                </td>
-                <td style={{ padding: '12px' }}>{ing.volume_ml} ml</td>
-                <td
-                  style={{
-                    padding: '12px',
-                    fontWeight: 'bold',
-                    color: '#059669',
-                  }}
-                >
-                  {(ing.cost_ht / ing.volume_ml).toFixed(4)} € / ml
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          {recipes.map((recipe) => (
+            <div
+              key={recipe.id}
+              style={{
+                background: '#fff',
+                padding: '15px',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                border: '1px solid #eee',
+              }}
+            >
+              <h3 style={{ margin: '0 0 10px 0' }}>{recipe.name}</h3>
+              {recipe.description && (
+                <p style={{ color: '#555', margin: '0 0 10px 0' }}>{recipe.description}</p>
+              )}
+              {recipe.price && (
+                <p style={{ fontWeight: 'bold', color: '#059669', margin: 0 }}>
+                  Prix de vente : {Number(recipe.price).toFixed(2)} €
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </main>
   );
