@@ -4,127 +4,254 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
 export default function RecipesListPage() {
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [ingredients, setIngredients] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, []);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Spiritueux');
+  const [costHt, setCostHt] = useState('');
+  const [volumeMl, setVolumeMl] = useState('700');
 
-  const fetchRecipes = async () => {
-    setLoading(true);
-    // Récupère les recettes et leurs ingrédients liés
+  const fetchIngredients = async () => {
     const { data, error } = await supabase
-      .from('recipes')
-      .select(`
-        *,
-        recipe_ingredients (
-          quantity_ml,
-          ingredients (
-            cost_ht,
-            volume_ml
-          )
-        )
-      `)
+      .from('ingredients')
+      .select('*')
       .order('created_at', { ascending: false });
-
     if (error) {
-      console.error('Erreur lors du chargement des recettes:', error);
+      console.error('Erreur de chargement:', error.message);
     } else {
-      // Calcul du coût total pour chaque recette
-      const formattedRecipes = data.map((recipe) => {
-        const totalCost = recipe.recipe_ingredients.reduce((acc, item) => {
-          const ing = item.ingredients;
-          if (!ing || !ing.volume_ml) return acc;
-          const costPerMl = ing.cost_ht / ing.volume_ml;
-          return acc + costPerMl * item.quantity_ml;
-        }, 0);
-
-        const marginEur = recipe.price_ht - totalCost;
-        const marginPercent = recipe.price_ht > 0 
-          ? ((marginEur / recipe.price_ht) * 100).toFixed(1) 
-          : 0;
-
-        return {
-          ...recipe,
-          totalCost: totalCost.toFixed(2),
-          marginEur: marginEur.toFixed(2),
-          marginPercent: marginPercent,
-        };
-      });
-
-      setRecipes(formattedRecipes);
+      setIngredients(data || []);
     }
-    setLoading(false);
   };
 
-  const deleteRecipe = async (id) => {
-    if (confirm('Es-tu sûr de vouloir supprimer cette recette ?')) {
-      const { error } = await supabase.from('recipes').delete().eq('id', id);
-      if (!error) {
-        setRecipes(recipes.filter((r) => r.id !== id));
-      } else {
-        alert('Erreur lors de la suppression : ' + error.message);
-      }
+  useEffect(() => {
+    fetchIngredients();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name || !costHt || !volumeMl) {
+      alert('Veuillez remplir tous les champs !');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.from('ingredients').insert([
+      {
+        name,
+        category,
+        cost_ht: parseFloat(costHt),
+        volume_ml: parseFloat(volumeMl),
+      },
+    ]);
+
+    setLoading(false);
+    if (error) {
+      alert("Erreur lors de l’ajout : " + error.message);
+    } else {
+      setName('');
+      setCostHt('');
+      fetchIngredients();
     }
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h1>📜 Carte des Cocktails & Recettes</h1>
+    <main
+      style={{
+        padding: '20px',
+        maxWidth: '800px',
+        margin: '0 auto',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      <h1>🍾 BarCodex - Gestion des Ingrédients</h1>
 
-      {loading ? (
-        <p>Chargement des recettes...</p>
-      ) : recipes.length === 0 ? (
-        <p>Aucune recette enregistrée pour le moment.</p>
-      ) : (
-        <div style={{ display: 'grid', gap: '15px', marginTop: '20px' }}>
-          {recipes.map((recipe) => (
-            <div
-              key={recipe.id}
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: '#f4f4f5',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '30px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>Ajouter une bouteille ou un ingrédient</h3>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontWeight: 'bold',
+              marginBottom: '5px',
+            }}
+          >
+            Nom de l’ingrédient :
+          </label>
+          <input
+            type="text"
+            placeholder="ex: Gin Hendrick’s, Sirop de Passion..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontWeight: 'bold',
+              marginBottom: '5px',
+            }}
+          >
+            Catégorie :
+          </label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+            }}
+          >
+            <option value="Spiritueux">Spiritueux</option>
+            <option value="Liqueur">Liqueur</option>
+            <option value="Jus">Jus</option>
+            <option value="Sirop">Sirop</option>
+            <option value="Soft / Soda">Soft / Soda</option>
+            <option value="Garniture">Garniture</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+          <div style={{ flex: 1 }}>
+            <label
               style={{
-                border: '1px solid #e4e4e7',
-                borderRadius: '8px',
-                padding: '20px',
-                background: '#fff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                display: 'block',
+                fontWeight: 'bold',
+                marginBottom: '5px',
               }}
             >
-              <div>
-                <h2 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>{recipe.name}</h2>
-                <div style={{ display: 'flex', gap: '20px', color: '#52525b', fontSize: '14px' }}>
-                  <span>Coût d'achat : <strong>{recipe.totalCost} €</strong></span>
-                  <span>Prix de vente HT : <strong>{recipe.price_ht} €</strong></span>
-                  <span>
-                    Marge :{' '}
-                    <strong style={{ color: recipe.marginPercent >= 70 ? '#16a34a' : '#d97706' }}>
-                      {recipe.marginEur} € ({recipe.marginPercent} %)
-                    </strong>
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => deleteRecipe(recipe.id)}
-                style={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                }}
-              >
-                Supprimer
-              </button>
-            </div>
-          ))}
+              Prix d’achat HT (€) :
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="ex: 28.00"
+              value={costHt}
+              onChange={(e) => setCostHt(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label
+              style={{
+                display: 'block',
+                fontWeight: 'bold',
+                marginBottom: '5px',
+              }}
+            >
+              Volume total (ml) :
+            </label>
+            <input
+              type="number"
+              placeholder="ex: 700"
+              value={volumeMl}
+              onChange={(e) => setVolumeMl(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+              }}
+            />
+          </div>
         </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            background: '#10b981',
+            color: '#fff',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '16px',
+          }}
+        >
+          {loading ? 'Enregistrement...' : '+ Ajouter l’ingrédient'}
+        </button>
+      </form>
+
+      <h3>Inventaire des bouteilles ({ingredients.length})</h3>
+      {ingredients.length === 0 ? (
+        <p style={{ color: '#666', fontStyle: 'italic' }}>
+          Aucun ingrédient enregistré pour le moment. Ajoutez votre première
+          bouteille ci-dessus !
+        </p>
+      ) : (
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            background: '#fff',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            borderRadius: '8px',
+            overflow: 'hidden',
+          }}
+        >
+          <thead>
+            <tr style={{ background: '#e4e4e7', textAlign: 'left' }}>
+              <th style={{ padding: '12px' }}>Nom</th>
+              <th style={{ padding: '12px' }}>Catégorie</th>
+              <th style={{ padding: '12px' }}>Prix HT</th>
+              <th style={{ padding: '12px' }}>Volume</th>
+              <th style={{ padding: '12px' }}>Coût / ml</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ingredients.map((ing) => (
+              <tr key={ing.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '12px', fontWeight: '500' }}>
+                  {ing.name}
+                </td>
+                <td style={{ padding: '12px', color: '#555' }}>
+                  {ing.category}
+                </td>
+                <td style={{ padding: '12px' }}>
+                  {Number(ing.cost_ht).toFixed(2)} €
+                </td>
+                <td style={{ padding: '12px' }}>{ing.volume_ml} ml</td>
+                <td
+                  style={{
+                    padding: '12px',
+                    fontWeight: 'bold',
+                    color: '#059669',
+                  }}
+                >
+                  {(ing.cost_ht / ing.volume_ml).toFixed(4)} € / ml
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
-    </div>
+    </main>
   );
 }

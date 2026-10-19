@@ -50,7 +50,7 @@ export default function IngredientsPage() {
 
     setLoading(false);
     if (error) {
-      alert('Erreur lors de l’ajout : ' + error.message);
+      alert('Erreur lors de l&apos;ajout : ' + error.message);
     } else {
       // Réinitialiser le formulaire
       setName('');
@@ -91,11 +91,11 @@ export default function IngredientsPage() {
               marginBottom: '5px',
             }}
           >
-            Nom de l'ingrédient :
+            Nom de l&apos;ingrédient :
           </label>
           <input
             type="text"
-            placeholder="ex: Gin Hendrick's, Sirop de Passion..."
+            placeholder="ex: Gin Hendrick&apos;s, Sirop de Passion..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{
@@ -145,7 +145,7 @@ export default function IngredientsPage() {
                 marginBottom: '5px',
               }}
             >
-              Prix d'achat HT (€) :
+              Prix d&apos;achat HT (€) :
             </label>
             <input
               type="number"
@@ -200,7 +200,7 @@ export default function IngredientsPage() {
             fontSize: '16px',
           }}
         >
-          {loading ? 'Enregistrement...' : '+ Ajouter l’ingrédient'}
+          {loading ? 'Enregistrement...' : '+ Ajouter l&apos;ingrédient'}
         </button>
       </form>
 
