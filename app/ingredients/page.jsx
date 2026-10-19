@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase'; // Ajuste le chemin vers ton fichier supabase.js si nécessaire
+import { supabase } from '../../lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function IngredientsPage() {
+  const [authLoading, setAuthLoading] = useState(true);
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // Champs du formulaire
   const [name, setName] = useState('');
@@ -13,7 +16,25 @@ export default function IngredientsPage() {
   const [costHt, setCostHt] = useState('');
   const [volumeMl, setVolumeMl] = useState('700');
 
-  // 1. Charger la liste des ingrédients depuis Supabase
+  // 1. Protection de la route : Vérifier la connexion utilisateur
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push('/login');
+      } else {
+        setAuthLoading(false);
+        fetchIngredients();
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // 2. Charger la liste des ingrédients depuis Supabase
   const fetchIngredients = async () => {
     const { data, error } = await supabase
       .from('ingredients')
@@ -26,11 +47,7 @@ export default function IngredientsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchIngredients();
-  }, []);
-
-  // 2. Soumettre le formulaire pour ajouter un nouvel ingrédient
+  // 3. Soumettre le formulaire pour ajouter un nouvel ingrédient
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !costHt || !volumeMl) {
@@ -50,7 +67,7 @@ export default function IngredientsPage() {
 
     setLoading(false);
     if (error) {
-      alert('Erreur lors de l&apos;ajout : ' + error.message);
+      alert('Erreur lors de l’ajout : ' + error.message);
     } else {
       // Réinitialiser le formulaire
       setName('');
@@ -58,6 +75,20 @@ export default function IngredientsPage() {
       fetchIngredients(); // Rafraîchir la liste instantanément
     }
   };
+
+  // 4. Déconnexion
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  if (authLoading) {
+    return (
+      <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <p>Vérification de l'accès en cours...</p>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -68,7 +99,33 @@ export default function IngredientsPage() {
         fontFamily: 'sans-serif',
       }}
     >
-      <h1>🍾 BarCodex - Gestion des Ingrédients</h1>
+      {/* ENTÊTE & BARKIN LOGOUT */}
+      <div
+        style={{
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+        }}
+      >
+        <h1 style={{ margin: 0 }}>🍾 BarCodex</h1>
+        <button
+          onClick={handleLogout}
+          style={{
+            background: '#ef4444',
+            color: '#fff',
+            border: 'none',
+            padding: '8px 15px',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+          }}
+        >
+          Déconnexion
+        </button>
+      </div>
+
+      <h2>Gestion des Ingrédients</h2>
 
       {/* FORMULAIRE D'AJOUT */}
       <form
@@ -91,11 +148,11 @@ export default function IngredientsPage() {
               marginBottom: '5px',
             }}
           >
-            Nom de l&apos;ingrédient :
+            Nom de l'ingrédient :
           </label>
           <input
             type="text"
-            placeholder="ex: Gin Hendrick&apos;s, Sirop de Passion..."
+            placeholder="ex: Gin Hendrick's, Sirop de Passion..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{
@@ -145,7 +202,7 @@ export default function IngredientsPage() {
                 marginBottom: '5px',
               }}
             >
-              Prix d&apos;achat HT (€) :
+              Prix d'achat HT (€) :
             </label>
             <input
               type="number"
@@ -200,7 +257,7 @@ export default function IngredientsPage() {
             fontSize: '16px',
           }}
         >
-          {loading ? 'Enregistrement...' : '+ Ajouter l&apos;ingrédient'}
+          {loading ? 'Enregistrement...' : '+ Ajouter l\'ingrédient'}
         </button>
       </form>
 
