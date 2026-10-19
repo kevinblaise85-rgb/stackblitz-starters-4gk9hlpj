@@ -8,6 +8,21 @@ export default function Home() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <a
+          href="/login"
+          style={{
+            padding: '15px 20px',
+            background: '#8b5cf6',
+            color: '#fff',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontWeight: 'bold',
+            textAlign: 'center',
+          }}
+        >
+          🔐 Se connecter / S’inscrire
+        </a>
+
+        <a
           href="/ingredients"
           style={{
             padding: '15px 20px',

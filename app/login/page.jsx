@@ -19,18 +19,17 @@ export default function LoginPage() {
       // Inscription
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        alert('Erreur d’inscription : ' + error.message);
+        alert("Erreur d’inscription : " + error.message);
       } else {
-        alert('Compte créé ! Vérifie tes e-mails pour confirmer ton compte si nécessaire, puis connecte-toi.');
+        alert("Compte créé ! Tu peux maintenant te connecter.");
         setIsSignUp(false);
       }
     } else {
       // Connexion
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        alert('Erreur de connexion : ' + error.message);
+        alert("Erreur de connexion : " + error.message);
       } else {
-        // Redirection vers l'accueil ou la gestion des ingrédients
         router.push('/ingredients');
       }
     }
