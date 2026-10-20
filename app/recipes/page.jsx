@@ -86,14 +86,13 @@ export default function CreateRecipePage() {
 
     setLoading(true);
 
-    // 1. Création de la recette
+    // 1. Création de la recette avec la clé exacte selling_price_ttc de Supabase
     const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
       .insert([
         {
           name: recipeName,
-          price: recipePrice ? parseFloat(recipePrice) : null,
-          total_cost: totalCost, // Optionnel si la colonne existe dans Supabase
+          selling_price_ttc: recipePrice ? parseFloat(recipePrice) : 0,
         },
       ])
       .select();
@@ -106,7 +105,7 @@ export default function CreateRecipePage() {
 
     const createdRecipe = recipeData[0];
 
-    // 2. Insertion des ingrédients de la recette (si la table de liaison existe)
+    // 2. Insertion des ingrédients dans la table de liaison recipe_ingredients (si elle existe)
     if (selectedIngredients.length > 0 && createdRecipe) {
       const recipeIngredientsData = selectedIngredients
         .filter((item) => item.ingredient_id && item.quantity_ml)
