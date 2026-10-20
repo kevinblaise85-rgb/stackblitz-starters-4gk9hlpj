@@ -103,12 +103,6 @@ export default function CreateRecipePage() {
     router.push('/recipes-list');
   };
 
-  // 7. Déconnexion
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
   if (authLoading) {
     return (
       <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
@@ -126,32 +120,6 @@ export default function CreateRecipePage() {
         fontFamily: 'sans-serif',
       }}
     >
-      {/* ENTÊTE & BOUTON DÉCONNEXION */}
-      <div
-        style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-        }}
-      >
-        <h1 style={{ margin: 0 }}>🍾 BarCodex</h1>
-        <button
-          onClick={handleLogout}
-          style={{
-            background: '#ef4444',
-            color: '#fff',
-            border: 'none',
-            padding: '8px 15px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Déconnexion
-        </button>
-      </div>
-
       <h2>🍹 Créer un nouveau Cocktail</h2>
 
       <form

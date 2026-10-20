@@ -67,19 +67,12 @@ export default function IngredientsPage() {
 
     setLoading(false);
     if (error) {
-      alert('Erreur lors de l’ajout : ' + error.message);
+      alert("Erreur lors de l'ajout : " + error.message);
     } else {
-      // Réinitialiser le formulaire
       setName('');
       setCostHt('');
-      fetchIngredients(); // Rafraîchir la liste instantanément
+      fetchIngredients();
     }
-  };
-
-  // 4. Déconnexion
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
   };
 
   if (authLoading) {
@@ -99,32 +92,6 @@ export default function IngredientsPage() {
         fontFamily: 'sans-serif',
       }}
     >
-      {/* ENTÊTE & BARKIN LOGOUT */}
-      <div
-        style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-        }}
-      >
-        <h1 style={{ margin: 0 }}>🍾 BarCodex</h1>
-        <button
-          onClick={handleLogout}
-          style={{
-            background: '#ef4444',
-            color: '#fff',
-            border: 'none',
-            padding: '8px 15px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Déconnexion
-        </button>
-      </div>
-
       <h2>Gestion des Ingrédients</h2>
 
       {/* FORMULAIRE D'AJOUT */}
@@ -257,7 +224,7 @@ export default function IngredientsPage() {
             fontSize: '16px',
           }}
         >
-          {loading ? 'Enregistrement...' : '+ Ajouter l\'ingrédient'}
+          {loading ? 'Enregistrement...' : "+ Ajouter l'ingrédient"}
         </button>
       </form>
 
@@ -265,8 +232,7 @@ export default function IngredientsPage() {
       <h3>Inventaire des bouteilles ({ingredients.length})</h3>
       {ingredients.length === 0 ? (
         <p style={{ color: '#666', fontStyle: 'italic' }}>
-          Aucun ingrédient enregistré pour le moment. Ajoutez votre première
-          bouteille ci-dessus !
+          Aucun ingrédient enregistré pour le moment.
         </p>
       ) : (
         <table
