@@ -44,12 +44,6 @@ export default function RecipesListPage() {
     setLoading(false);
   };
 
-  // 3. Déconnexion
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
   if (authLoading) {
     return (
       <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
@@ -67,32 +61,6 @@ export default function RecipesListPage() {
         fontFamily: 'sans-serif',
       }}
     >
-      {/* ENTÊTE & BOUTON DÉCONNEXION */}
-      <div
-        style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-        }}
-      >
-        <h1 style={{ margin: 0 }}>🍾 BarCodex</h1>
-        <button
-          onClick={handleLogout}
-          style={{
-            background: '#ef4444',
-            color: '#fff',
-            border: 'none',
-            padding: '8px 15px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Déconnexion
-        </button>
-      </div>
-
       <h2>🍸 Liste des Recettes</h2>
 
       {loading ? (
@@ -103,28 +71,41 @@ export default function RecipesListPage() {
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {recipes.map((recipe) => (
-            <div
-              key={recipe.id}
-              style={{
-                background: '#fff',
-                padding: '15px',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                border: '1px solid #eee',
-              }}
-            >
-              <h3 style={{ margin: '0 0 10px 0' }}>{recipe.name}</h3>
-              {recipe.description && (
-                <p style={{ color: '#555', margin: '0 0 10px 0' }}>{recipe.description}</p>
-              )}
-              {recipe.price && (
-                <p style={{ fontWeight: 'bold', color: '#059669', margin: 0 }}>
-                  Prix de vente : {Number(recipe.price).toFixed(2)} €
-                </p>
-              )}
-            </div>
-          ))}
+          {recipes.map((recipe) => {
+            const price = Number(recipe.selling_price_ttc || recipe.price || 0);
+
+            return (
+              <div
+                key={recipe.id}
+                style={{
+                  background: '#fff',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  border: '1px solid #eee',
+                  display: 'flex',
+                  justify: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: '18px' }}>🍹 {recipe.name}</h3>
+                {price > 0 && (
+                  <span
+                    style={{
+                      fontWeight: 'bold',
+                      color: '#059669',
+                      background: '#ecfdf5',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #a7f3d0',
+                    }}
+                  >
+                    {price.toFixed(2)} €
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </main>
