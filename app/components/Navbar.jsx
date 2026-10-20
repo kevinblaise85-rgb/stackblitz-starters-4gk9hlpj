@@ -96,6 +96,17 @@ export default function Navbar() {
           >
             📉 Stock & Pertes
           </Link>
+
+          <Link
+            href="/preparations"
+            style={{
+              color: pathname === '/preparations' ? '#10b981' : '#fff',
+              textDecoration: 'none',
+              fontWeight: pathname === '/preparations' ? 'bold' : 'normal',
+            }}
+          >
+            🧪 Ingrédients Maison
+          </Link>
         </div>
       </div>
 
