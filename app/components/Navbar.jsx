@@ -65,6 +65,17 @@ export default function Navbar() {
           </Link>
 
           <Link
+            href="/preparations"
+            style={{
+              color: pathname === '/preparations' ? '#10b981' : '#fff',
+              textDecoration: 'none',
+              fontWeight: pathname === '/preparations' ? 'bold' : 'normal',
+            }}
+          >
+            🧪 Ingrédients Maison
+          </Link>
+
+          <Link
             href="/recipes"
             style={{
               color: pathname === '/recipes' ? '#10b981' : '#fff',
@@ -95,17 +106,6 @@ export default function Navbar() {
             }}
           >
             📉 Stock & Pertes
-          </Link>
-
-          <Link
-            href="/preparations"
-            style={{
-              color: pathname === '/preparations' ? '#10b981' : '#fff',
-              textDecoration: 'none',
-              fontWeight: pathname === '/preparations' ? 'bold' : 'normal',
-            }}
-          >
-            🧪 Ingrédients Maison
           </Link>
         </div>
       </div>
