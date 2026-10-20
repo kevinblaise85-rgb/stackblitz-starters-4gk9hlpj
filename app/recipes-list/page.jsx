@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function RecipesListPage() {
   const [authLoading, setAuthLoading] = useState(true);
@@ -10,7 +11,6 @@ export default function RecipesListPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 1. Protection de la route : Vérifier la connexion utilisateur
   useEffect(() => {
     const checkAuth = async () => {
       const {
@@ -28,7 +28,6 @@ export default function RecipesListPage() {
     checkAuth();
   }, [router]);
 
-  // 2. Charger la liste des recettes depuis Supabase
   const fetchRecipes = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -42,6 +41,21 @@ export default function RecipesListPage() {
       setRecipes(data || []);
     }
     setLoading(false);
+  };
+
+  // Fonction pour supprimer une recette
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Es-tu sûr de vouloir supprimer le cocktail "${name}" ?`)) {
+      return;
+    }
+
+    const { error } = await supabase.from('recipes').delete().eq('id', id);
+
+    if (error) {
+      alert('Erreur lors de la suppression : ' + error.message);
+    } else {
+      setRecipes(recipes.filter((recipe) => recipe.id !== id));
+    }
   };
 
   if (authLoading) {
@@ -61,7 +75,7 @@ export default function RecipesListPage() {
         fontFamily: 'sans-serif',
       }}
     >
-      <h2>🍸 Liste des Recettes</h2>
+      <h2>📜 Mes Recettes & Cocktails ({recipes.length})</h2>
 
       {loading ? (
         <p>Chargement des recettes...</p>
@@ -79,30 +93,59 @@ export default function RecipesListPage() {
                 key={recipe.id}
                 style={{
                   background: '#fff',
-                  padding: '15px',
+                  padding: '15px 20px',
                   borderRadius: '8px',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                   border: '1px solid #eee',
                   display: 'flex',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
-                <h3 style={{ margin: 0, fontSize: '18px' }}>🍹 {recipe.name}</h3>
-                {price > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>🍹 {recipe.name}</h3>
                   <span
                     style={{
+                      fontSize: '14px',
                       fontWeight: 'bold',
                       color: '#059669',
-                      background: '#ecfdf5',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid #a7f3d0',
                     }}
                   >
-                    {price.toFixed(2)} €
+                    {price > 0 ? `Prix : ${price.toFixed(2)} €` : 'Prix non défini'}
                   </span>
-                )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <Link
+                    href={`/recipes/edit?id=${recipe.id}`}
+                    style={{
+                      background: '#3b82f6',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '5px',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    ✏️ Modifier
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(recipe.id, recipe.name)}
+                    style={{
+                      background: '#ef4444',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '8px 12px',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    🗑️ Supprimer
+                  </button>
+                </div>
               </div>
             );
           })}
