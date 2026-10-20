@@ -13,7 +13,6 @@ export default function CreateRecipePage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 1. Protection de la route : Vérifier la connexion utilisateur
   useEffect(() => {
     const checkAuth = async () => {
       const {
@@ -31,7 +30,6 @@ export default function CreateRecipePage() {
     checkAuth();
   }, [router]);
 
-  // 2. Charger les ingrédients disponibles pour composer le cocktail
   const fetchIngredients = async () => {
     const { data, error } = await supabase
       .from('ingredients')
@@ -45,7 +43,6 @@ export default function CreateRecipePage() {
     }
   };
 
-  // 3. Ajouter une ligne d'ingrédient à la recette
   const addIngredientRow = () => {
     setSelectedIngredients([
       ...selectedIngredients,
@@ -53,20 +50,33 @@ export default function CreateRecipePage() {
     ]);
   };
 
-  // 4. Mettre à jour une ligne d'ingrédient
   const handleIngredientChange = (index, field, value) => {
     const updated = [...selectedIngredients];
     updated[index][field] = value;
     setSelectedIngredients(updated);
   };
 
-  // 5. Supprimer une ligne d'ingrédient
   const removeIngredientRow = (index) => {
     const updated = selectedIngredients.filter((_, i) => i !== index);
     setSelectedIngredients(updated);
   };
 
-  // 6. Sauvegarder la recette
+  // --- CALCULS AUTOMATIQUES EN TEMPS RÉEL ---
+  const calculateTotalCost = () => {
+    return selectedIngredients.reduce((total, item) => {
+      const ing = ingredientsList.find((i) => i.id === item.ingredient_id);
+      if (!ing || !item.quantity_ml || !ing.volume_ml) return total;
+      const costPerMl = ing.cost_ht / ing.volume_ml;
+      return total + costPerMl * parseFloat(item.quantity_ml);
+    }, 0);
+  };
+
+  const totalCost = calculateTotalCost();
+  const sellingPrice = parseFloat(recipePrice) || 0;
+  const margin = sellingPrice > 0 ? sellingPrice - totalCost : 0;
+  const costRatio = sellingPrice > 0 ? (totalCost / sellingPrice) * 100 : 0;
+
+  // --- SAUVEGARDER LA RECETTE ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!recipeName) {
@@ -76,13 +86,14 @@ export default function CreateRecipePage() {
 
     setLoading(true);
 
-    // Création de la recette
+    // 1. Création de la recette
     const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
       .insert([
         {
           name: recipeName,
           price: recipePrice ? parseFloat(recipePrice) : null,
+          total_cost: totalCost, // Optionnel si la colonne existe dans Supabase
         },
       ])
       .select();
@@ -93,7 +104,29 @@ export default function CreateRecipePage() {
       return;
     }
 
-    // Réinitialisation du formulaire
+    const createdRecipe = recipeData[0];
+
+    // 2. Insertion des ingrédients de la recette (si la table de liaison existe)
+    if (selectedIngredients.length > 0 && createdRecipe) {
+      const recipeIngredientsData = selectedIngredients
+        .filter((item) => item.ingredient_id && item.quantity_ml)
+        .map((item) => ({
+          recipe_id: createdRecipe.id,
+          ingredient_id: item.ingredient_id,
+          quantity_ml: parseFloat(item.quantity_ml),
+        }));
+
+      if (recipeIngredientsData.length > 0) {
+        const { error: linkError } = await supabase
+          .from('recipe_ingredients')
+          .insert(recipeIngredientsData);
+
+        if (linkError) {
+          console.error('Erreur liaison ingrédients:', linkError.message);
+        }
+      }
+    }
+
     setRecipeName('');
     setRecipePrice('');
     setSelectedIngredients([]);
@@ -151,7 +184,7 @@ export default function CreateRecipePage() {
 
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>
-            Prix de vente conseillé (€) :
+            Prix de vente HT ou TTC (€) :
           </label>
           <input
             type="number"
@@ -170,67 +203,86 @@ export default function CreateRecipePage() {
 
         <h3>Composition du cocktail</h3>
 
-        {selectedIngredients.map((item, index) => (
-          <div
-            key={index}
-            style={{
-              display: 'flex',
-              gap: '10px',
-              marginBottom: '10px',
-              alignItems: 'center',
-            }}
-          >
-            <select
-              value={item.ingredient_id}
-              onChange={(e) =>
-                handleIngredientChange(index, 'ingredient_id', e.target.value)
-              }
+        {selectedIngredients.map((item, index) => {
+          const ing = ingredientsList.find((i) => i.id === item.ingredient_id);
+          const lineCost =
+            ing && item.quantity_ml && ing.volume_ml
+              ? ((ing.cost_ht / ing.volume_ml) * parseFloat(item.quantity_ml)).toFixed(2)
+              : '0.00';
+
+          return (
+            <div
+              key={index}
               style={{
-                flex: 2,
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '10px',
+                alignItems: 'center',
               }}
             >
-              <option value="">Sélectionner un ingrédient</option>
-              {ingredientsList.map((ing) => (
-                <option key={ing.id} value={ing.id}>
-                  {ing.name} ({ing.category})
-                </option>
-              ))}
-            </select>
+              <select
+                value={item.ingredient_id}
+                onChange={(e) =>
+                  handleIngredientChange(index, 'ingredient_id', e.target.value)
+                }
+                style={{
+                  flex: 2,
+                  padding: '10px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                }}
+              >
+                <option value="">Sélectionner un ingrédient</option>
+                {ingredientsList.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} ({i.category})
+                  </option>
+                ))}
+              </select>
 
-            <input
-              type="number"
-              placeholder="Dosage (ml)"
-              value={item.quantity_ml}
-              onChange={(e) =>
-                handleIngredientChange(index, 'quantity_ml', e.target.value)
-              }
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
-            />
+              <input
+                type="number"
+                placeholder="Dosage (ml)"
+                value={item.quantity_ml}
+                onChange={(e) =>
+                  handleIngredientChange(index, 'quantity_ml', e.target.value)
+                }
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                }}
+              />
 
-            <button
-              type="button"
-              onClick={() => removeIngredientRow(index)}
-              style={{
-                background: '#ef4444',
-                color: '#fff',
-                border: 'none',
-                padding: '10px 12px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+              <span
+                style={{
+                  minWidth: '65px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: '#4b5563',
+                }}
+              >
+                {lineCost} €
+              </span>
+
+              <button
+                type="button"
+                onClick={() => removeIngredientRow(index)}
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '10px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
 
         <button
           type="button"
@@ -249,6 +301,47 @@ export default function CreateRecipePage() {
         >
           + Ajouter un ingrédient
         </button>
+
+        {/* CADRE DE RÉSUMÉ FINANCIER EN TEMPS RÉEL */}
+        <div
+          style={{
+            background: '#e0f2fe',
+            border: '1px solid #bae6fd',
+            borderRadius: '8px',
+            padding: '15px',
+            marginBottom: '20px',
+          }}
+        >
+          <h4 style={{ margin: '0 0 10px 0', color: '#0369a1' }}>
+            📊 Indicateurs Financiers
+          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+            <div>
+              <span style={{ fontSize: '13px', color: '#0284c7' }}>Coût de revient :</span>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#0369a1' }}>
+                {totalCost.toFixed(2)} €
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '13px', color: '#0284c7' }}>Marge brute :</span>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#059669' }}>
+                {margin.toFixed(2)} €
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '13px', color: '#0284c7' }}>Ratio Coût / Prix :</span>
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: costRatio > 30 ? '#dc2626' : '#059669',
+                }}
+              >
+                {costRatio.toFixed(1)} %
+              </div>
+            </div>
+          </div>
+        </div>
 
         <button
           type="submit"
