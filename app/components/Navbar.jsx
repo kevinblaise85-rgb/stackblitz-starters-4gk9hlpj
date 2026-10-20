@@ -85,6 +85,17 @@ export default function Navbar() {
           >
             📜 Mes Recettes
           </Link>
+
+          <Link
+            href="/stock"
+            style={{
+              color: pathname === '/stock' ? '#10b981' : '#fff',
+              textDecoration: 'none',
+              fontWeight: pathname === '/stock' ? 'bold' : 'normal',
+            }}
+          >
+            📉 Stock & Pertes
+          </Link>
         </div>
       </div>
 
