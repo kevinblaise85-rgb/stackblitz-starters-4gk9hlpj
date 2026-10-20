@@ -1,51 +1,24 @@
-import { createServerClient } from '@supabase/ssr';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 
-export async function middleware(request) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+export async function middleware(req) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Vérifier la session de l'utilisateur
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Si l'utilisateur N'EST PAS connecté et n'est pas déjà sur /login ou /register
-  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/register')) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Si l'utilisateur n'est pas connecté et essaie d'accéder à une page protégée
+  if (!session && !req.nextUrl.pathname.startsWith('/login') && !req.nextUrl.pathname.startsWith('/register')) {
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  return response;
+  return res;
 }
 
-// Configurer les routes protégées par le middleware
 export const config = {
   matcher: [
-    /*
-     * Protège toutes les pages sauf les fichiers statiques, images et API publiques
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
