@@ -16,7 +16,6 @@ export default function RecipesListPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      // 1. Récupérer le rôle de l'utilisateur
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -25,7 +24,6 @@ export default function RecipesListPage() {
 
       if (profile) setRole(profile.role);
 
-      // 2. Récupérer les recettes avec leurs détails
       const { data: recipesData } = await supabase
         .from('recipes')
         .select(`
@@ -33,8 +31,7 @@ export default function RecipesListPage() {
           recipe_ingredients (
             quantity,
             ingredients (name, buy_price_ht, volume_ml)
-          ),
-          recipe_formats (*)
+          )
         `);
 
       if (recipesData) setRecipes(recipesData);
@@ -52,11 +49,11 @@ export default function RecipesListPage() {
 
   return (
     <main style={{ padding: '30px', maxWidth: '1000px', margin: '0 auto', color: '#fff' }}>
-      <h2>📜 Mes Recettes</h2>
+      <h2>📜 Fiches Recettes Bar</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
         {recipes.map((recipe) => {
-          // Calcul du coût de revient total (pour l'admin)
+          // Calcul du coût uniquement pour le rôle Admin
           const totalCost = recipe.recipe_ingredients?.reduce((sum, item) => {
             const ing = item.ingredients;
             if (!ing || !ing.volume_ml) return sum;
@@ -82,7 +79,7 @@ export default function RecipesListPage() {
             >
               <div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#10b981' }}>{recipe.name}</h3>
-                <p style={{ fontSize: '14px', color: '#9ca3af' }}>Type : {recipe.glass_type || 'Verre standard'}</p>
+                <p style={{ fontSize: '14px', color: '#9ca3af' }}>Verre : {recipe.glass_type || 'Standard'}</p>
 
                 <h4 style={{ marginTop: '15px', marginBottom: '8px', fontSize: '14px' }}>Composition :</h4>
                 <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#d1d5db' }}>
@@ -94,7 +91,7 @@ export default function RecipesListPage() {
                 </ul>
 
                 {/* 🔒 DONNÉES FINANCIÈRES : VISIBLES UNIQUEMENT PAR L'ADMIN */}
-                {role === 'admin' ? (
+                {role === 'admin' && (
                   <div
                     style={{
                       marginTop: '15px',
@@ -105,27 +102,14 @@ export default function RecipesListPage() {
                       fontSize: '13px',
                     }}
                   >
-                    <div>Prix TTC : <strong>{recipe.selling_price_ttc || 0} €</strong></div>
+                    <div>Prix Vente TTC : <strong>{recipe.selling_price_ttc || 0} €</strong></div>
                     <div>Coût de revient : <strong style={{ color: '#ef4444' }}>{totalCost.toFixed(2)} €</strong></div>
                     <div>Marge brute : <strong style={{ color: '#10b981' }}>{margin.toFixed(2)} € ({marginRate}%)</strong></div>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      marginTop: '15px',
-                      padding: '8px 10px',
-                      background: '#374151',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: '#9ca3af',
-                    }}
-                  >
-                    🔒 Données financières réservées au gérant
                   </div>
                 )}
               </div>
 
-              {/* 🔒 BOUTON SUPPRIMER : VISIBLE UNIQUEMENT PAR L'ADMIN */}
+              {/* 🔒 SUPPRESSION : ADMIN SEULEMENT */}
               {role === 'admin' && (
                 <button
                   onClick={() => handleDelete(recipe.id)}
