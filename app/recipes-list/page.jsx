@@ -2,155 +2,151 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function RecipesListPage() {
-  const [authLoading, setAuthLoading] = useState(true);
   const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    fetchUserRoleAndRecipes();
+  }, []);
 
-      if (!session) {
-        router.push('/login');
-      } else {
-        setAuthLoading(false);
-        fetchRecipes();
-      }
-    };
+  const fetchUserRoleAndRecipes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
 
-    checkAuth();
-  }, [router]);
+    if (user) {
+      // 1. Récupérer le rôle de l'utilisateur
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-  const fetchRecipes = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('*')
-      .order('created_at', { ascending: false });
+      if (profile) setRole(profile.role);
 
-    if (error) {
-      console.error('Erreur lors du chargement des recettes:', error.message);
-    } else {
-      setRecipes(data || []);
+      // 2. Récupérer les recettes avec leurs détails
+      const { data: recipesData } = await supabase
+        .from('recipes')
+        .select(`
+          *,
+          recipe_ingredients (
+            quantity,
+            ingredients (name, buy_price_ht, volume_ml)
+          ),
+          recipe_formats (*)
+        `);
+
+      if (recipesData) setRecipes(recipesData);
     }
     setLoading(false);
   };
 
-  // Fonction pour supprimer une recette
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Es-tu sûr de vouloir supprimer le cocktail "${name}" ?`)) {
-      return;
-    }
-
-    const { error } = await supabase.from('recipes').delete().eq('id', id);
-
-    if (error) {
-      alert('Erreur lors de la suppression : ' + error.message);
-    } else {
-      setRecipes(recipes.filter((recipe) => recipe.id !== id));
-    }
+  const handleDelete = async (id) => {
+    if (!confirm('Voulez-vous vraiment supprimer cette recette ?')) return;
+    await supabase.from('recipes').delete().eq('id', id);
+    setRecipes(recipes.filter((r) => r.id !== id));
   };
 
-  if (authLoading) {
-    return (
-      <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-        <p>Vérification de l'accès en cours...</p>
-      </main>
-    );
-  }
+  if (loading) return <div style={{ padding: '30px', color: '#fff' }}>Chargement...</div>;
 
   return (
-    <main
-      style={{
-        padding: '20px',
-        maxWidth: '800px',
-        margin: '0 auto',
-        fontFamily: 'sans-serif',
-      }}
-    >
-      <h2>📜 Mes Recettes & Cocktails ({recipes.length})</h2>
+    <main style={{ padding: '30px', maxWidth: '1000px', margin: '0 auto', color: '#fff' }}>
+      <h2>📜 Mes Recettes</h2>
 
-      {loading ? (
-        <p>Chargement des recettes...</p>
-      ) : recipes.length === 0 ? (
-        <p style={{ color: '#666', fontStyle: 'italic' }}>
-          Aucune recette enregistrée pour le moment.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {recipes.map((recipe) => {
-            const price = Number(recipe.selling_price_ttc || recipe.price || 0);
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
+        {recipes.map((recipe) => {
+          // Calcul du coût de revient total (pour l'admin)
+          const totalCost = recipe.recipe_ingredients?.reduce((sum, item) => {
+            const ing = item.ingredients;
+            if (!ing || !ing.volume_ml) return sum;
+            const costPerMl = ing.buy_price_ht / ing.volume_ml;
+            return sum + costPerMl * item.quantity;
+          }, 0) || 0;
 
-            return (
-              <div
-                key={recipe.id}
-                style={{
-                  background: '#fff',
-                  padding: '15px 20px',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  border: '1px solid #eee',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <h3 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>🍹 {recipe.name}</h3>
-                  <span
+          const margin = recipe.selling_price_ttc ? recipe.selling_price_ttc - totalCost : 0;
+          const marginRate = recipe.selling_price_ttc ? ((margin / recipe.selling_price_ttc) * 100).toFixed(1) : 0;
+
+          return (
+            <div
+              key={recipe.id}
+              style={{
+                background: '#1f2937',
+                padding: '20px',
+                borderRadius: '8px',
+                border: '1px solid #374151',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+              }}
+            >
+              <div>
+                <h3 style={{ margin: '0 0 10px 0', color: '#10b981' }}>{recipe.name}</h3>
+                <p style={{ fontSize: '14px', color: '#9ca3af' }}>Type : {recipe.glass_type || 'Verre standard'}</p>
+
+                <h4 style={{ marginTop: '15px', marginBottom: '8px', fontSize: '14px' }}>Composition :</h4>
+                <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#d1d5db' }}>
+                  {recipe.recipe_ingredients?.map((ri, idx) => (
+                    <li key={idx}>
+                      {ri.ingredients?.name} : <strong>{ri.quantity} ml</strong>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* 🔒 DONNÉES FINANCIÈRES : VISIBLES UNIQUEMENT PAR L'ADMIN */}
+                {role === 'admin' ? (
+                  <div
                     style={{
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      color: '#059669',
+                      marginTop: '15px',
+                      padding: '10px',
+                      background: '#111827',
+                      borderRadius: '6px',
+                      borderLeft: '3px solid #10b981',
+                      fontSize: '13px',
                     }}
                   >
-                    {price > 0 ? `Prix : ${price.toFixed(2)} €` : 'Prix non défini'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <Link
-                    href={`/recipes/edit?id=${recipe.id}`}
+                    <div>Prix TTC : <strong>{recipe.selling_price_ttc || 0} €</strong></div>
+                    <div>Coût de revient : <strong style={{ color: '#ef4444' }}>{totalCost.toFixed(2)} €</strong></div>
+                    <div>Marge brute : <strong style={{ color: '#10b981' }}>{margin.toFixed(2)} € ({marginRate}%)</strong></div>
+                  </div>
+                ) : (
+                  <div
                     style={{
-                      background: '#3b82f6',
-                      color: '#fff',
-                      padding: '8px 12px',
-                      borderRadius: '5px',
-                      textDecoration: 'none',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
+                      marginTop: '15px',
+                      padding: '8px 10px',
+                      background: '#374151',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#9ca3af',
                     }}
                   >
-                    ✏️ Modifier
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(recipe.id, recipe.name)}
-                    style={{
-                      background: '#ef4444',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '8px 12px',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    🗑️ Supprimer
-                  </button>
-                </div>
+                    🔒 Données financières réservées au gérant
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              {/* 🔒 BOUTON SUPPRIMER : VISIBLE UNIQUEMENT PAR L'ADMIN */}
+              {role === 'admin' && (
+                <button
+                  onClick={() => handleDelete(recipe.id)}
+                  style={{
+                    marginTop: '15px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  🗑️ Supprimer
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </main>
   );
 }
