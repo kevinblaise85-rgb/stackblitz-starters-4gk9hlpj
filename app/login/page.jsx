@@ -13,6 +13,10 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Bloque tout rechargement intempestif de la page
+
+    if (loading) return;
+
     setLoading(true);
     setErrorMsg('');
 
@@ -23,21 +27,23 @@ export default function LoginPage() {
       });
 
       if (error) {
+        console.error('Erreur Supabase Auth:', error);
         setErrorMsg(error.message);
         setLoading(false);
         return;
       }
 
       if (data?.session) {
-        // Redirection forcée pour recharger la session et passer le middleware
-        window.location.href = '/';
+        // Redirection vers le tableau de bord
+        router.push('/');
+        router.refresh();
       } else {
-        setErrorMsg('Connexion impossible. Vérifiez que votre email est confirmé.');
+        setErrorMsg('Aucune session créée. Vérifiez la confirmation de votre e-mail.');
         setLoading(false);
       }
     } catch (err) {
-      console.error('Erreur lors de la connexion:', err);
-      setErrorMsg('Une erreur inattendue est survenue.');
+      console.error('Erreur inattendue:', err);
+      setErrorMsg('Erreur de connexion au serveur.');
       setLoading(false);
     }
   };
@@ -132,7 +138,7 @@ export default function LoginPage() {
             cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          {loading ? 'Chargement...' : 'Se connecter'}
+          {loading ? 'Connexion en cours...' : 'Se connecter'}
         </button>
       </form>
     </main>
