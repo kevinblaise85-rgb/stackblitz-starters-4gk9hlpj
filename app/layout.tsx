@@ -1,19 +1,26 @@
-import './globals.css';
-import Navbar from './components/Navbar';
+'use client';
 
-export const metadata = {
-  title: 'BarCodex',
-  description: 'Gestion de bar et inventaire',
-};
+import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { supabase } from '../lib/supabase';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="fr">
-      {/* Assure-toi qu'il n'y a pas de style inline avec background blanc ici */}
-      <body style={{ backgroundColor: '#0f172a', color: '#f8fafc', margin: 0 }}>
-        <Navbar />
-        {children}
-      </body>
-    </html>
-  );
+export default function AuthCheck() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Ne rien vérifier si on est déjà sur la page de login ou d'inscription
+    if (pathname.startsWith('/login') || pathname.startsWith('/register')) return;
+
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+      }
+    };
+
+    checkUser();
+  }, [pathname, router]);
+
+  return null;
 }
