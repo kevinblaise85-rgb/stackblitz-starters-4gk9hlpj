@@ -1,77 +1,120 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
 
-  const handleAuth = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
 
-    if (isSignUp) {
-      // Inscription
-      const { error } = await supabase.auth.signUp({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
       if (error) {
-        alert("Erreur d’inscription : " + error.message);
-      } else {
-        alert("Compte créé ! Tu peux maintenant te connecter.");
-        setIsSignUp(false);
+        setErrorMsg(error.message);
+        setLoading(false);
+        return;
       }
-    } else {
-      // Connexion
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        alert("Erreur de connexion : " + error.message);
+
+      if (data?.session) {
+        // Redirection forcée pour recharger la session et passer le middleware
+        window.location.href = '/';
       } else {
-        router.push('/ingredients');
+        setErrorMsg('Connexion impossible. Vérifiez que votre email est confirmé.');
+        setLoading(false);
       }
+    } catch (err) {
+      console.error('Erreur lors de la connexion:', err);
+      setErrorMsg('Une erreur inattendue est survenue.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <main style={{ padding: '40px 20px', maxWidth: '400px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>
-        🍾 BarCodex - {isSignUp ? 'Inscription' : 'Connexion'}
-      </h1>
-
+    <main
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: '#121212',
+        color: '#fff',
+      }}
+    >
       <form
-        onSubmit={handleAuth}
+        onSubmit={handleLogin}
         style={{
-          background: '#f4f4f5',
-          padding: '20px',
+          background: '#18181b',
+          padding: '30px',
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          width: '100%',
+          maxWidth: '400px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
         }}
       >
+        <h2 style={{ marginBottom: '20px', textAlign: 'center' }}>🍹 Connexion BarCodex</h2>
+
+        {errorMsg && (
+          <div
+            style={{
+              background: '#ef444422',
+              color: '#ef4444',
+              padding: '10px',
+              borderRadius: '6px',
+              marginBottom: '15px',
+              fontSize: '14px',
+              border: '1px solid #ef4444',
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>E-mail :</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Email</label>
           <input
             type="email"
-            placeholder="ton@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '4px',
+              border: '1px solid #374151',
+              background: '#27272a',
+              color: '#fff',
+            }}
           />
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Mot de passe :</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Mot de passe</label>
           <input
             type="password"
-            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '4px',
+              border: '1px solid #374151',
+              background: '#27272a',
+              color: '#fff',
+            }}
           />
         </div>
 
@@ -80,34 +123,16 @@ export default function LoginPage() {
           disabled={loading}
           style={{
             width: '100%',
-            background: '#10b981',
-            color: '#fff',
-            border: 'none',
             padding: '12px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            marginBottom: '10px',
-          }}
-        >
-          {loading ? 'Chargement...' : isSignUp ? 'Créer un compte' : 'Se connecter'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
-          style={{
-            background: 'none',
+            borderRadius: '4px',
             border: 'none',
-            color: '#3b82f6',
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'center',
-            fontSize: '14px',
+            background: loading ? '#374151' : '#10b981',
+            color: '#fff',
+            fontWeight: 'bold',
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          {isSignUp ? 'Déjà un compte ? Connecte-toi' : 'Pas de compte ? Inscris-toi'}
+          {loading ? 'Chargement...' : 'Se connecter'}
         </button>
       </form>
     </main>
