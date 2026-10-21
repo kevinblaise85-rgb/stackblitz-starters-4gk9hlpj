@@ -13,37 +13,42 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    e.stopPropagation(); // Bloque tout rechargement intempestif de la page
-
     if (loading) return;
 
     setLoading(true);
     setErrorMsg('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Promesse de sécurité en cas de blocage réseau/Supabase
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Délai d’attente dépassé (Timeout). Vérifiez votre connexion ou vos clés Supabase.')), 8000)
+      );
+
+      // Appel Supabase
+      const authPromise = supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
       });
+
+      // Course entre Supabase et le Timeout
+      const { data, error } = await Promise.race([authPromise, timeoutPromise]);
 
       if (error) {
         console.error('Erreur Supabase Auth:', error);
-        setErrorMsg(error.message);
+        setErrorMsg(error.message || 'Erreur de connexion.');
         setLoading(false);
         return;
       }
 
       if (data?.session) {
-        // Redirection vers le tableau de bord
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
       } else {
-        setErrorMsg('Aucune session créée. Vérifiez la confirmation de votre e-mail.');
+        setErrorMsg('Échec de la connexion. Vérifiez votre e-mail et votre mot de passe.');
         setLoading(false);
       }
     } catch (err) {
-      console.error('Erreur inattendue:', err);
-      setErrorMsg('Erreur de connexion au serveur.');
+      console.error('Erreur globale connexion:', err);
+      setErrorMsg(err.message || 'Impossible de contacter le serveur.');
       setLoading(false);
     }
   };
